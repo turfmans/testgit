@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?> 
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+                                                                                                                            
+<scenario name="Basic UAS responder">
+
+<recv request="INVITE" rrs="true"> 
+      <action>
+            <ereg regexp="[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]" search_in="hdr" header="To:" check_it="true" assign_to="3"/>
+      </action>
+</recv>
+
+<send>
+<![CDATA[ 
+      SIP/2.0 100 Trying
+      [last_Via]
+      [last_From]
+      [last_To]
+      [last_Call-ID]
+      [last_CSeq]
+      Content-Length: [len]
+  ]]> 
+  </send> 
+
+<send>
+  <![CDATA[ 
+      SIP/2.0 180 Ringing 
+      [last_Via]
+      [last_Record-Route]
+      [last_From]
+      [last_To];tag=[$3]
+      [last_Call-ID]
+      [last_CSeq]
+      Contact: sip:[$3]@[local_ip]:[local_port]
+      Allow: INVITE,ACK,CANCEL,BYE,PRACK,UPDATE,OPTIONS,INFO,MESSAGE,NOTIFY
+      Supported: 100rel,early-session
+      Content-Length: [len]
+  ]]>
+</send>
+
+<send retrans="0">
+<![CDATA[ 
+      SIP/2.0 200 OK                                                        
+      [last_Via]                                                            
+      [last_Record-Route]                                                            
+      [last_From]                                                           
+      [last_To];tag=[$3]                                                    
+      [last_Call-ID]                                                        
+      [last_CSeq]
+      Contact: sip:[$3]@[local_ip]:[local_port]
+      Allow: INVITE,ACK,CANCEL,BYE,PRACK,UPDATE,OPTIONS,INFO,MESSAGE,NOTIFY,REFER
+      Supported: timer, replaces
+      Session-Expires: 180;refresher=uac
+      Content-Type: application/sdp
+      Content-Length: [len]
+                                                                            
+      v=0
+      o=[$3] 3574541866 3742314028 IN IP4 [local_ip]
+      s=session SDP
+      c=IN IP4 [local_ip]
+      t=0 0
+      m=audio [auto_media_port] RTP/AVP 8
+      a=ptime:20
+      a=recvonly]]>
+</send>
+
+<recv request="ACK" timeout="3000" crlf="true"> 
+  </recv>
+
+
+
+<recv request="INVITE" rrs="true"> 
+</recv>
+
+<send retrans="0">
+<![CDATA[
+      SIP/2.0 200 OK
+      [last_Via]
+      [last_Record-Route]
+      [last_From]
+      [last_To];tag=[$3]
+      [last_Call-ID]
+      [last_CSeq]
+      Contact: sip:[$3]@[local_ip]:[local_port]
+      Allow: INVITE,ACK,CANCEL,BYE,PRACK,UPDATE,OPTIONS,INFO,MESSAGE,NOTIFY,REFER
+      Supported: timer, replaces
+      Session-Expires: 180;refresher=uac
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=[$3] 3574541866 3742314028 IN IP4 [local_ip]
+      s=session SDP
+      c=IN IP4 [local_ip]
+      t=0 0
+      m=audio [auto_media_port] RTP/AVP 8
+      a=ptime:20
+      a=sendrecv
+      m=0
+      a=ptime:20
+      a=sendonly]]>
+</send>
+
+<recv request="ACK" timeout="3000" crlf="true"> 
+  </recv> 
+
+
+<label id="1"/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="./g711a_25s.pcap"/>
+      <add assign_to="1" value="1"/>
+      <test assign_to="2" variable="1" compare="less_than" value="1"/>
+    </action>
+  </nop>
+
+<pause milliseconds="25000" next="1" test="2"/>
+
+<!--
+<pause milliseconds="20000"/>
+-->
+
+<recv request="BYE" rrs="true"> 
+  </recv>
+  
+<send>
+<![CDATA[ 
+      SIP/2.0 200 OK
+      [last_Via]
+      [last_Record-Route]
+      [last_From]
+      [last_To]
+      [last_Call-ID]
+      [last_CSeq]
+      Content-Length: [len]]]> 
+</send>
+
+<!--  Keep the call open for a while in case the 200 is lost to be      --> 
+<!--  able to retransmit it if we receive the BYE again.                --> 
+
+<!--  definition of the response time repartition table (unit is ms)    --> 
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200,250,300,350,400,450,500,600,700,800,900,1000"/> 
+<!--  definition of the call length repartition table (unit is ms)     --> 
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000,30000,60000,180000"/>
+  </scenario>
